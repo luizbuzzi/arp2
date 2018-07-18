@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+
+  <rosparam command="load" file="$(find arp_control)/config/control.yaml" />
+
+  <node name="base_controller_spawner" pkg="controller_manager" type="spawner"
+  output="screen"  args="arp_joint_publisher
+        arp_velocity_controller
+        --shutdown-timeout 3">
+  </node>
+</launch>

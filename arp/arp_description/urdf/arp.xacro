@@ -1,0 +1,382 @@
+<?xml version="1.0"?>
+<robot name="arp" xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <!--Propriedades dos motores-->
+    <xacro:property name="wheelEffort" value="10000.0"/>
+    <xacro:property name="wheelVelocity" value="10000.0"/>
+    <xacro:property name="wheelDamping" value="0.0"/>
+    <xacro:property name="wheelFriction" value="0.0"/>
+    <!--DImencao chassis-->
+    <xacro:property name="chassisHeight" value="0.225"/>
+    <!--Posicao do chassis-->
+    <xacro:property name="chassisPoseX" value="-0.291"/>
+    <xacro:property name="chassisPoseY" value="-0.23"/>
+    <xacro:property name="chassisPoseZ" value="0.0979"/>
+    <!-- Size of half square 'camera' box -->
+    <xacro:property name="cameraLink" value="0.010" />
+    <!--Posicao da Camera-->
+    <xacro:property name="cameraPoseX" value="0.220"/>
+    <xacro:property name="cameraPoseY" value="-0.05"/>
+    <xacro:property name="cameraPoseZ" value="${chassisHeight+0.01}"/>
+    <xacro:property name="cameraOrientation" value="0"/>
+    <!--Posicao do Lidar-->
+    <xacro:property name="lidarPoseX" value="${cameraPoseX}"/>
+    <xacro:property name="lidarPoseY" value="0"/>
+    <xacro:property name="lidarPoseZ" value="${chassisHeight+0.06}"/>
+    <xacro:property name="lidarOrientation" value="-0.1"/>
+    <!--Centro de massa chassis / sendo o ponto 0 o centro da base-->
+    <xacro:property name="chassisCenterMassX" value="0"/>
+    <xacro:property name="chassisCenterMassY" value="0"/>
+    <xacro:property name="chassisCenterMassZ" value="0.095"/>
+    <!--Posicao dos rodas-->
+    <xacro:property name="frontWheelPose" value="0.225"/>
+    <xacro:property name="backWheelPose" value="-${frontWheelPose}"/>
+    <xacro:property name="leftWheelPose" value="0.282"/>
+    <xacro:property name="rightWheelPose" value="-${leftWheelPose}"/>
+    <xacro:property name="heightWheelPose" value="0.13"/>
+    <!--Massa dos componentes-->
+    <xacro:property name="chassisMass" value="14.336"/>
+    <xacro:property name="wheelMass" value="1.877"/>
+    <!--Inercia do chassis-->
+    <xacro:property name="chassisInertiaXX" value="0.34"/>
+    <xacro:property name="chassisInertiaYY" value="0.44"/>
+    <xacro:property name="chassisInertiaZZ" value="0.63"/>
+    <xacro:property name="chassisInertiaXY" value="0.0"/>
+    <xacro:property name="chassisInertiaXZ" value="0.0"/>
+    <xacro:property name="chassisInertiaYZ" value="0.0"/>
+    <!--Inercia do roda-->
+    <xacro:property name="wheelInertiaXX" value="0.01"/>
+    <xacro:property name="wheelInertiaYY" value="0.01"/>
+    <xacro:property name="wheelInertiaZZ" value="0.01"/>
+    <xacro:property name="wheelInertiaXY" value="0.0"/>
+    <xacro:property name="wheelInertiaXZ" value="0.0"/>
+    <xacro:property name="wheelInertiaYZ" value="0.0"/>
+    <!--PI-->
+    <xacro:property name="PI" value="3.14159265359"/>
+
+    <!--Macro inicializacao motor e roda description-->
+    <xacro:macro name="jointWheel" params="name nameMimic *originjoint *originmesh">
+        <link name="${name}_wheel_link">
+            <inertial>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <mass value="${wheelMass}"/>
+                <inertia
+                    ixx="${wheelInertiaXX}" ixy="${wheelInertiaXY}" ixz="${wheelInertiaXZ}"
+                    iyy="${wheelInertiaYY}" iyz="${wheelInertiaYZ}"
+                    izz="${wheelInertiaZZ}"
+                />
+            </inertial>
+            <collision>
+                <origin xyz="0 0 0" rpy="0 1.5707 1.5707"/>
+                <geometry>
+                    <cylinder length="0.08" radius="0.13"/>
+                </geometry>
+            </collision>
+            <visual>
+                <xacro:insert_block name="originmesh"/>
+                <geometry>
+                    <mesh filename="package://arp_description/meshes/pneu.STL"/>
+                </geometry>
+            </visual>
+        </link>
+        <joint name="${name}_wheel" type="continuous">
+            <parent link="chassis"/>
+            <child link="${name}_wheel_link"/>
+            <xacro:insert_block name="originjoint"/>
+            <axis xyz="0 1 0"/>
+            <limit effort="${wheelEffort}"  velocity="${wheelVelocity}"/>
+            <joint_properties damping="${wheelDamping}" friction="${wheelFriction}"/>
+            <mimic joint="${nameMimic}_wheel"/>
+        </joint>
+        <transmission name="${name}_trans">
+            <type>transmission_interface/SimpleTransmission</type>
+            <joint name="${name}_wheel">
+                <!--hardwareInterface>EffortJointInterface</hardwareInterface-->
+                <hardwareInterface>VelocityJointInterface</hardwareInterface>
+            </joint>
+            <actuator name="${name}Motor">
+                <!--hardwareInterface>EffortJointInterface</hardwareInterface-->
+                <hardwareInterface>VelocityJointInterface</hardwareInterface>
+                <mechanicalReduction>1</mechanicalReduction>
+            </actuator>
+        </transmission>
+    </xacro:macro>
+
+    <!--Base inicial sem inercia-->
+    <link name="base_link" />
+    <joint name="base_link_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="chassis"/>
+    </joint>
+
+    <!--Chassis description-->
+    <link name="chassis">
+        <inertial>
+            <origin xyz="${chassisCenterMassX} ${chassisCenterMassY} ${chassisCenterMassZ+chassisPoseZ}" rpy="0 0 0"/>
+            <mass value="${chassisMass}"/>
+            <inertia
+                ixx="${chassisInertiaXX}" ixy="${chassisInertiaXY}" ixz="${chassisInertiaXZ}"
+                iyy="${chassisInertiaYY}" iyz="${chassisInertiaYZ}"
+                izz="${chassisInertiaZZ}"
+            />
+        </inertial>
+        <collision>
+            <origin xyz="${chassisPoseX} ${chassisPoseY} ${chassisPoseZ}" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://arp_description/meshes/chassis_collision.STL"/>
+            </geometry>
+        </collision>
+        <visual>
+            <origin xyz="${chassisPoseX-0.010} ${chassisPoseY} ${chassisPoseZ}" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://arp_description/meshes/chassis_visual.STL"/>
+            </geometry>
+        </visual>
+    </link>
+
+    <!-- Camera Link-->
+
+    <link name="my_camera">
+      <inertial>
+        <origin xyz=".0 .0 ${cameraLink}" rpy="0 0 0"/>
+        <mass value="1"/>
+        <inertia ixx=".166"  ixy="0"  ixz="0" iyy=".166" iyz="0" izz=".166" />
+      </inertial>
+      <visual>
+        <origin xyz=".0 .0 ${cameraLink}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${cameraLink*2} ${cameraLink*4} ${cameraLink*2}"/>
+        </geometry>
+        <material name="red"/>
+      </visual>
+      <collision>
+        <origin xyz=".0 .0 ${cameraLink}" rpy="0 0 0"/>
+        <geometry>
+          <box size="${cameraLink*2} ${cameraLink*2} ${cameraLink*2}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <!-- Hokuyo Link -->
+    <link name="laser_frame">
+      <inertial>
+        <mass value="1e-5" />
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://arp_description/meshes/hokuyo.dae"/>
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="camera_joint" type="fixed">
+      <axis xyz="0 0 1" />
+      <origin xyz="${cameraPoseX} ${cameraPoseY} ${cameraPoseZ+chassisPoseZ+cameraLink}" rpy="0 0 ${cameraOrientation}"/>
+      <parent link="chassis"/>
+      <child link="my_camera"/>
+    </joint>
+
+    <joint name="hokuyo_joint" type="fixed">
+      <axis xyz="0 0 1" />
+      <origin xyz="${lidarPoseX} ${lidarPoseY} ${lidarPoseZ+chassisPoseZ}" rpy="0 0 ${lidarOrientation}"/>
+      <parent link="chassis"/>
+      <child link="laser_frame"/>
+    </joint>
+
+    <link name="imu_sensor_link">
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.02 0.02 0.02"/>
+        </geometry>
+      </collision>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.02 0.02 0.02"/>
+        </geometry>
+        <material name="red"/>
+      </visual>
+      <inertial>
+        <mass value="0.001" />
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="0.00000015" ixy="0" ixz="0" iyy="0.00000015" iyz="0" izz="0.00000015" />
+      </inertial>
+    </link>
+
+    <joint name="imu_sensor_joint" type="fixed">
+      <axis xyz="0 0 1" />
+      <origin xyz="0 0 ${chassisPoseZ+0.02}" rpy="0 0 0"/>
+      <parent link="chassis"/>
+      <child link="imu_sensor_link"/>
+    </joint>
+
+
+
+
+
+    <!--Joint description e roda-->
+    <xacro:jointWheel name="front_left" nameMimic="back_left">
+        <origin xyz="${frontWheelPose} ${leftWheelPose} ${heightWheelPose}" rpy="0 0 0"/>
+        <origin xyz="-0.135 0.044 0.1345" rpy="${PI} 0 0"/>
+    </xacro:jointWheel>
+    <xacro:jointWheel name="front_right" nameMimic="back_right">
+        <origin xyz="${frontWheelPose} ${rightWheelPose} ${heightWheelPose}" rpy="0 0 0"/>
+        <origin xyz="-0.135 -0.044 -0.1345" rpy="0 0 0"/>
+    </xacro:jointWheel>
+    <xacro:jointWheel name="back_left" nameMimic="front_left">
+        <origin xyz="${backWheelPose} ${leftWheelPose} ${heightWheelPose}" rpy="0 0 0"/>
+        <origin xyz="-0.135 0.044 0.1345" rpy="${PI} 0 0"/>
+    </xacro:jointWheel>
+    <xacro:jointWheel name="back_right" nameMimic="front_right">
+        <origin xyz="${backWheelPose} ${rightWheelPose} ${heightWheelPose}" rpy="0 0 0"/>
+        <origin xyz="-0.135 -0.044 -0.1345" rpy="0 0 0"/>
+    </xacro:jointWheel>
+
+    <!--Gazebo plugin-->
+    <gazebo>
+        <!-->
+        <plugin name="skid_steer_drive_controller" filename="libgazebo_ros_skid_steer_drive.so">
+            <updateRate>20</updateRate>
+            <robotNamespace>/</robotNamespace>
+            <leftFrontJoint>front_left_wheel_hinge</leftFrontJoint>
+            <rightFrontJoint>front_right_wheel_hinge</rightFrontJoint>
+            <leftRearJoint>back_left_wheel_hinge</leftRearJoint>
+            <rightRearJoint>back_right_wheel_hinge</rightRearJoint>
+            <wheelSeparation>0.46</wheelSeparation>
+            <wheelDiameter>0.260</wheelDiameter>
+            <robotBaseFrame>footprint</robotBaseFrame>
+            <torque>20</torque>
+            <topicName>cmd_vel</topicName>
+            <broadcastTF>false</broadcastTF>
+            <commandTopic>cmd_vel</commandTopic>
+            <odometryTopic>odom</odometryTopic>
+            <odometryFrame>odom</odometryFrame>
+        </plugin>
+        -->
+        <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+            <robotNamespace>/</robotNamespace>
+        </plugin>
+        <!--
+        <plugin name="gazebo_mimic_joint_plugin" filename="libroboticsgroup_gazebo_mimic_joint_plugin.so">
+            <joint>front_left_wheel_hinge</joint>
+            <mimicJoint>back_left_wheel_hinge</mimicJoint>
+        </plugin>
+        <plugin name="gazebo_mimic_joint_plugin" filename="libroboticsgroup_gazebo_mimic_joint_plugin.so">
+            <joint>front_right_wheel_hinge</joint>
+            <mimicJoint>back_right_wheel_hinge</mimicJoint>
+        </plugin>
+        -->
+    </gazebo>
+
+    <!-- Plugin camera -->
+     <gazebo reference="my_camera">
+       <sensor type="camera" name="camera1">
+         <update_rate>30.0</update_rate>
+         <camera name="head">
+           <horizontal_fov>1.3962634</horizontal_fov>
+           <image>
+             <width>1920</width>
+             <height>1080</height>
+             <format>R8G8B8</format>
+           </image>
+           <clip>
+             <near>0.08</near>
+             <far>300</far>
+           </clip>
+           <noise>
+             <type>gaussian</type>
+             <!-- Noise is sampled independently per pixel on each frame.
+                  That pixel's noise value is added to each of its color
+                  channels, which at that point lie in the range [0,1]. -->
+             <mean>0.0</mean>
+             <stddev>0.007</stddev>
+           </noise>
+         </camera>
+         <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+           <alwaysOn>true</alwaysOn>
+           <updateRate>0.0</updateRate>
+           <cameraName>arp/camera1</cameraName>
+           <imageTopicName>image_raw</imageTopicName>
+           <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+           <frameName>camera_link</frameName>
+           <hackBaseline>0.07</hackBaseline>
+           <distortionK1>0.0</distortionK1>
+           <distortionK2>0.0</distortionK2>
+           <distortionK3>0.0</distortionK3>
+           <distortionT1>0.0</distortionT1>
+           <distortionT2>0.0</distortionT2>
+         </plugin>
+       </sensor>
+     </gazebo>
+
+    <!-- Plugin laser Hokuyo -->
+    <gazebo reference="laser_frame">
+      <sensor type="ray" name="head_hokuyo_sensor">
+      <!-- <sensor type="gpu_ray" name="head_hokuyo_sensor"> FOR GPU -->
+        <pose>0 0 0 0 0 0</pose>
+        <visualize>false</visualize>
+        <update_rate>40</update_rate>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>100</samples>
+              <resolution>1</resolution>
+              <min_angle>0</min_angle>
+              <max_angle>6.283185307</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <min>0.10</min>
+            <max>30.0</max>
+            <resolution>0.01</resolution>
+          </range>
+          <noise>
+            <type>gaussian</type>
+            <!-- Noise parameters based on published spec for Hokuyo laser
+                 achieving "+-30mm" accuracy at range < 10m.  A mean of 0.0m and
+                 stddev of 0.01m will put 99.7% of samples within 0.03m of the true
+                 reading. -->
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </ray>
+        <plugin name="gazebo_ros_head_hokuyo_controller" filename="libgazebo_ros_laser.so">
+        <!--<plugin name="gazebo_ros_head_hokuyo_controller" filename="libgazebo_ros_gpu_laser.so">   FOR GPU-->
+          <topicName>arp/laser/scan</topicName>
+          <frameName>hokuyo_link</frameName>
+        </plugin>
+      </sensor>
+    </gazebo>
+
+<gazebo>
+  <plugin name="imu_sensor" filename="libgazebo_ros_imu.so">
+    <always_on>true</always_on>
+    <update_rate>100.0</update_rate>
+    <bodyName>imu_sensor_link</bodyName>
+    <topicName>arp/imu</topicName>
+    <serviceName>arp/imu_service</serviceName>
+    <rpyOffset>0 0 0</rpyOffset>
+    <gaussianNoise>0</gaussianNoise>
+    <accelDrift><!--0.5 0.5 0.5-->0 0 0 </accelDrift>
+    <accelGaussianNoise><!--0.35 0.35 0.3-->0 0 0</accelGaussianNoise>
+    <rateDrift><!--0.1 0.1 0.1-->0 0 0</rateDrift>
+    <rateGaussianNoise><!--0.05 0.05 0.015-->0 0 0</rateGaussianNoise>
+    <headingDrift>0<!--.1-->0</headingDrift>
+    <headingGaussianNoise><!--0.05-->0</headingGaussianNoise>
+  </plugin>
+</gazebo>
+
+    <gazebo reference="imu_sensor_link">
+      <gravity>true</gravity>
+     </gazebo>
+
+</robot>

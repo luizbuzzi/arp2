@@ -1,0 +1,38 @@
+<?xml version="1.0" ?>
+<launch>
+  <arg name="world" default="empty"/>
+  <arg name="paused" default="false"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="gui" default="true"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+
+  <!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find arp_gazebo)/worlds/gas_station.world"/>
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="headless" value="$(arg headless)"/>
+    <arg name="debug" value="$(arg debug)"/>
+  </include>
+
+  <!-- Load robot description -->
+  <include file="$(find arp_description)/launch/description.launch"/>
+
+  <!-- push robot_description to factory and spawn robot in gazebo -->
+  <node name="arp_spawn" pkg="gazebo_ros" type="spawn_model" output="screen"
+  args="-urdf -param robot_description -model arp" />
+
+  <!-- ros_control mybot launch file
+  <include file="$(find arp_gazebo)/launch/arp_control_gazebo.launch" />-->
+
+  <include file="$(find arp_control)/launch/control2.launch"/>
+
+  <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop" output="screen" launch-prefix="xterm -e">
+    <remap from="cmd_vel" to="arp_velocity_controller/cmd_vel" />
+  </node>
+
+</launch>
+
+

@@ -1,0 +1,19 @@
+<launch>
+  <arg name="joy_config" default="joy" />
+  <arg name="joy_dev" default="/dev/input/js0" />
+
+  <!--node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop" output="screen" launch-prefix="xterm -e">
+    <remap from="cmd_vel" to="arp_node/arp_velocity_controller/cmd_vel" />
+  </node-->
+
+  <node respawn="true" pkg="joy" type="joy_node" name="joy">
+    <param name="dev" type="string" value="$(arg joy_dev)" />
+    <param name="deadzone" value="0.12" />
+    <param name="autorepeat_rate" value="25" />
+  </node>
+  <node pkg="teleop_twist_joy" name="teleop_twist_joy" type="teleop_node">
+    <rosparam command="load" file="$(find arp_control)/config/$(arg joy_config).yaml" />
+    <remap from="cmd_vel" to="arp_node/arp_velocity_controller/cmd_vel" />
+  </node>
+
+</launch>
